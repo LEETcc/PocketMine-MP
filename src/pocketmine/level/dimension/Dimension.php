@@ -36,14 +36,17 @@ use pocketmine\level\generator\{
 	Generator, GeneratorRegisterTask, GeneratorUnregisterTask
 };
 use pocketmine\level\Level;
+use pocketmine\level\Location;
+use pocketmine\level\Position;
 use pocketmine\level\utils\LevelException;
 use pocketmine\math\{
 	AxisAlignedBB, Vector3
 };
 use pocketmine\network\protocol\{
-	ChangeDimensionPacket, DataPacket, LevelEventPacket, UpdateBlockPacket
+	ChangeDimensionPacket, DataPacket, LevelEventPacket, MoveEntityPacket, SetEntityMotionPacket, UpdateBlockPacket
 };
 use pocketmine\Player;
+use pocketmine\Server;
 use pocketmine\tile\Tile;
 use pocketmine\utils\Random;
 
@@ -133,6 +136,8 @@ abstract class Dimension implements ChunkManager{
 
 	/** @var Level */
 	protected $level;
+	/** @var Server */
+	protected $server;
 	/** @var DimensionType */
 	protected $dimensionType;
 	/** @var int */
@@ -142,14 +147,19 @@ abstract class Dimension implements ChunkManager{
 	/** @var Generator */
 	protected $generatorInstance;
 
+	/** @var Location */
+	protected $spawnLocation;
+
 	/** @var Chunk[] */
 	protected $chunks = [];
 
 	/** @var DataPacket[] */
 	protected $chunkCache = [];
 
-	/** @var DataPacket[] */
+	/** @var DataPacket[][] */
 	protected $chunkPackets = [];
+	/** @var DataPacket[] */
+	protected $dimensionPackets = [];
 
 	/** @var Block[] */
 	protected $blockCache = [];
@@ -178,13 +188,6 @@ abstract class Dimension implements ChunkManager{
 	/** @var Tile[] */
 	public $updateTiles = [];
 
-	protected $motionToSend = [];
-	protected $moveToSend = [];
-
-	protected $rainLevel = 0;
-	protected $thunderLevel = 0;
-	protected $nextWeatherChange;
-
 	/** @var bool */
 	protected $closed = false;
 
@@ -200,6 +203,7 @@ abstract class Dimension implements ChunkManager{
 	 */
 	protected function __construct(Level $level, int $saveId, int $networkId = ChangeDimensionPacket::DIMENSION_OVERWORLD, string $generatorName = "DEFAULT"){
 		$this->level = $level;
+		$this->server = $level->getServer();
 		$this->saveId = $saveId;
 		if(($type = DimensionType::get($networkId)) instanceof DimensionType){
 			$this->dimensionType = $type;
@@ -225,118 +229,40 @@ abstract class Dimension implements ChunkManager{
 	}
 
 	/**
-	 * Closes the dimension, saves ad unloads everything.
+	 * Closes the dimension, saves and unloads everything.
 	 * TODO
 	 */
-	public function close(){
+	public function onClose(){
+		$this->unregisterGenerator();
 		$this->closed = true;
 	}
 
-	/**
-	 * @since API 3.0.0
-	 *
-	 * @return Level
-	 */
-	final public function getLevel() : Level{
-		return $this->level;
-	}
 
 	/**
-	 * Returns a DimensionType object containing immutable dimension properties
-	 * @since API 3.0.0
-	 *
-	 * @return DimensionType
-	 */
-	final public function getDimensionType() : DimensionType{
-		return $this->dimensionType;
-	}
-
-	/**
-	 * Returns the dimension's ID. Unique within levels only. This is used for world saves.
-	 *
-	 * NOTE: For vanilla dimensions, this will NOT match the folder name in Anvil/MCRegion formats due to inconsistencies in dimension
-	 * IDs between PC and PE. For example the Nether has saveID 1, but will be saved in the DIM-1 folder in the world save.
-	 *
-	 * @since API 3.0.0
-	 *
-	 * @return int
-	 */
-	final public function getSaveId() : int{
-		return $this->saveId;
-	}
-
-	/**
-	 * Returns the dimension's network ID based on the dimension type. This value affects sky colours seen by clients (red, blue, purple)
-	 * @since API 3.0.0
-	 *
-	 * @return int
-	 */
-	final public function getNetworkId() : int{
-		return $this->dimensionType->getNetworkId();
-	}
-
-	/**
-	 * Returns the display name of this dimension.
-	 * @since API 3.0.0
-	 *
-	 * @return string
-	 */
-	abstract public function getDimensionName() : string;
-
-	/**
-	 * Returns the fully qualified class name of the generator used for this dimension.
-	 * @since API 3.0.0
-	 *
-	 * @return string
-	 */
-	public function getGenerator() : string{
-		return $this->generatorClass;
-	}
-
-	/**
-	 * Registers the generator to all AsyncWorkers for async chunk generation.
+	 * Executes ticks on this dimension
 	 * @internal
+	 *
+	 * @param int $currentTick
 	 */
-	public function registerGenerator(){
-		$size = $this->level->getServer()->getScheduler()->getAsyncTaskPoolSize();
-		for($i = 0; $i < $size; ++$i){
-			$this->level->getServer()->getScheduler()->scheduleAsyncTaskToWorker(new GeneratorRegisterTask($this, $this->generatorInstance), $i);
+	public function doTick(int $currentTick){
+		foreach($this->chunkPackets as $index => $entries){
+			Level::getXZ($index, $chunkX, $chunkZ);
+			$chunkPlayers = $this->getChunkPlayers($chunkX, $chunkZ);
+			if(count($chunkPlayers) > 0){
+				foreach($entries as $pk){
+					$this->server->broadcastPacket($chunkPlayers, $pk);
+				}
+			}
 		}
-	}
+		$this->chunkPackets = [];
 
-	/**
-	 * Unregisters the generator from all AsyncWorkers
-	 * @internal
-	 */
-	public function unregisterGenerator(){
-		$size = $this->level->getServer()->getScheduler()->getAsyncTaskPoolSize();
-		for($i = 0; $i < $size; ++$i){
-			$this->level->getServer()->getScheduler()->scheduleAsyncTaskToWorker(new GeneratorUnregisterTask($this), $i);
+		foreach($this->dimensionPackets as $dimensionPacket){
+			$this->server->broadcastPacket($this->players, $dimensionPacket);
 		}
+		$this->dimensionPackets = [];
+
 	}
 
-	/**
-	 * Returns the horizontal (X/Z) of 1 block in this dimension compared to the Overworld.
-	 * This is used to calculate positions for entities transported between dimensions.
-	 *
-	 * @since API 3.0.0
-	 *
-	 * @return float
-	 */
-	public function getDistanceMultiplier() : float{
-		return 1.0;
-	}
-
-	/**
-	 * Returns the dimension max build height as per MCPE
-	 * @since API 3.0.0
-	 *
-	 * @return int
-	 */
-	final public function getMaxBuildHeight() : int{
-		//TODO: add world/dimension height options (?)
-		return $this->dimensionType->getMaxBuildHeight();
-	}
 
 	/**
 	 * Returns all players in the dimension.
@@ -349,17 +275,7 @@ abstract class Dimension implements ChunkManager{
 	}
 
 	/**
-	 * Returns whether there are currently players in this dimension or not.
-	 * @since API 3.0.0
-	 *
-	 * @return bool
-	 */
-	public function isInUse() : bool{
-		return count($this->players) > 0;
-	}
-
-	/**
-	 * Returns players in the specified chunk.
+	 * Returns all players using the specified chunk.
 	 * @since API 3.0.0
 	 *
 	 * @param int $chunkX
@@ -382,169 +298,6 @@ abstract class Dimension implements ChunkManager{
 	 */
 	public function getChunkLoaders(int $chunkX, int $chunkZ) : array{
 		return $this->chunkLoaders[Level::chunkHash($chunkX, $chunkZ)] ?? [];
-	}
-
-	/**
-	 * Adds an entity to the dimension index.
-	 * @since API 3.0.0
-	 *
-	 * @param Entity $entity
-	 */
-	public function addEntity(Entity $entity){
-		if($entity instanceof Player){
-			$this->players[$entity->getId()] = $entity;
-		}
-		$this->entities[$entity->getId()] = $entity;
-	}
-
-	/**
-	 * Removes an entity from the dimension's entity index. We do NOT close the entity here as it may simply be getting transferred
-	 * to another dimension.
-	 *
-	 * @since API 3.0.0
-	 *
-	 * @param Entity $entity
-	 */
-	public function removeEntity(Entity $entity){
-		if($entity instanceof Player){
-			unset($this->players[$entity->getId()]);
-			$this->checkSleep();
-		}
-
-		unset($this->entities[$entity->getId()]);
-		unset($this->updateEntities[$entity->getId()]);
-	}
-
-	/**
-	 * Transfers an entity to this dimension from a different one.
-	 * @since API 3.0.0
-	 *
-	 * @param Entity $entity
-	 */
-	public function transferEntity(Entity $entity){
-		//TODO
-	}
-
-	/**
-	 * Returns all entities in the dimension.
-	 * @since API 3.0.0
-	 *
-	 * @return Entity[]
-	 */
-	public function getEntities() : array{
-		return $this->entities;
-	}
-
-	/**
-	 * Returns the entity with the specified ID in this dimension, or null if it does not exist.
-	 * @since API 3.0.0
-	 *
-	 * @param int $entityId
-	 *
-	 * @return Entity|null
-	 */
-	public function getEntity(int $entityId){
-		return $this->entities[$entityId] ?? null;
-	}
-
-	/**
-	 * Returns a list of the entities in the specified chunk. Returns an empty array if the chunk is not loaded.
-	 * @since API 3.0.0
-	 *
-	 * @param int $X
-	 * @param int $Z
-	 *
-	 * @return Entity[]
-	 */
-	public function getChunkEntities(int $X, int $Z) : array{
-		return ($chunk = $this->getChunk($X, $Z)) !== null ? $chunk->getEntities() : [];
-	}
-
-	/**
-	 * Adds a tile to the dimension index.
-	 * @since API 3.0.0
-	 *
-	 * @param Tile $tile
-	 *
-	 * @throws LevelException
-	 */
-	public function addTile(Tile $tile){
-		/*if($tile->getLevel() !== $this){
-			throw new LevelException("Invalid Tile level");
-		}*/
-		$this->tiles[$tile->getId()] = $tile;
-		$this->clearChunkCache($tile->getX() >> 4, $tile->getZ() >> 4);
-	}
-
-	/**
-	 * Removes a tile from the dimension index.
-	 * @since API 3.0.0
-	 *
-	 * @param Tile $tile
-	 *
-	 * @throws LevelException
-	 */
-	public function removeTile(Tile $tile){
-		/*if($tile->getLevel() !== $this){
-			throw new LevelException("Invalid Tile level");
-		}*/
-
-		unset($this->tiles[$tile->getId()]);
-		unset($this->updateTiles[$tile->getId()]);
-		$this->clearChunkCache($tile->getX() >> 4, $tile->getZ() >> 4);
-	}
-
-	/**
-	 * Returns a list of the Tiles in this dimension
-	 * @since API 3.0.0
-	 *
-	 * @return Tile[]
-	 */
-	public function getTiles() : array{
-		return $this->tiles;
-	}
-
-	/**
-	 * Returns the tile with the specified ID in this dimension
-	 * @since API 3.0.0
-	 *
-	 * @param $tileId
-	 *
-	 * @return Tile|null
-	 */
-	public function getTileById(int $tileId){
-		return $this->tiles[$tileId] ?? null;
-	}
-
-	/**
-	 * Returns the Tile at the specified position, or null if not found
-	 * @since API 3.0.0
-	 *
-	 * @param Vector3 $pos
-	 *
-	 * @return Tile|null
-	 */
-	public function getTile(Vector3 $pos){
-		$chunk = $this->getChunk($pos->x >> 4, $pos->z >> 4, false);
-
-		if($chunk !== null){
-			return $chunk->getTile($pos->x & 0x0f, $pos->y, $pos->z & 0x0f);
-		}
-
-		return null;
-	}
-
-	/**
-	 * Gives a list of the Tile entities in the specified chunk. Returns an empty array if the chunk is not loaded.
-	 * @since API 3.0.0
-	 *
-	 * @param int $X
-	 * @param int $Z
-	 *
-	 * @return Tile[]
-	 */
-	public function getChunkTiles(int $X, int $Z) : array{
-		return ($chunk = $this->getChunk($X, $Z)) !== null ? $chunk->getTiles() : [];
 	}
 
 	/**
@@ -581,6 +334,80 @@ abstract class Dimension implements ChunkManager{
 	public function setChunk(int $chunkX, int $chunkZ, Chunk $chunk = null){
 		//TODO
 	}
+
+
+	/**
+	 * Queues a DataPacket to be sent to all players using the specified chunk on the next tick.
+	 * @internal
+	 *
+	 * @param int        $chunkX
+	 * @param int        $chunkZ
+	 * @param DataPacket $packet
+	 */
+	public function addChunkPacket(int $chunkX, int $chunkZ, $packet){
+		if(!isset($this->chunkPackets[$index = Level::chunkHash($chunkX, $chunkZ)])){
+			$this->chunkPackets[$index] = [$packet];
+		}else{
+			$this->chunkPackets[$index][] = $packet;
+		}
+	}
+
+	/**
+	 * Queues a DataPacket to be sent to all players in the dimension on the next tick.
+	 * @internal
+	 *
+	 * @param DataPacket $packet
+	 */
+	public function addDimensionPacket(DataPacket $packet){
+		$this->dimensionPackets[] = $packet;
+	}
+
+	/**
+	 * Queues an entity motion change to be sent on the next tick.
+	 * @internal
+	 *
+	 * @param int   $chunkX
+	 * @param int   $chunkZ
+	 * @param int   $entityId
+	 * @param float $motX
+	 * @param float $motY
+	 * @param float $motZ
+	 */
+	public function addEntityMotionPacket(int $chunkX, int $chunkZ, int $entityId, float $motX, float $motY, float $motZ){
+		$pk = new SetEntityMotionPacket();
+		$pk->eid = $entityId;
+		$pk->motionX = $motX;
+		$pk->motionY = $motY;
+		$pk->motionZ = $motZ;
+		$this->addChunkPacket($chunkX, $chunkZ, $pk);
+	}
+
+	/**
+	 * Queues an entity movement to be sent to players on the next tick.
+	 * @internal
+	 *
+	 * @param int        $chunkX
+	 * @param int        $chunkZ
+	 * @param int        $entityId
+	 * @param float      $x
+	 * @param float      $y
+	 * @param float      $z
+	 * @param float      $yaw
+	 * @param float      $pitch
+	 * @param float|null $headYaw
+	 */
+	public function addEntityMovementPacket(int $chunkX, int $chunkZ, int $entityId, float $x, float $y, float $z, float $yaw, float $pitch, $headYaw = null){
+		$pk = new MoveEntityPacket();
+		$pk->eid = $entityId;
+		$pk->x = $x;
+		$pk->y = $y;
+		$pk->z = $z;
+		$pk->yaw = $yaw;
+		$pk->pitch = $pitch;
+		$pk->headYaw = $headYaw ?? $yaw;
+		$this->addChunkPacket($chunkX, $chunkZ, $pk);
+	}
+
 
 	/**
 	 * Returns the block at the specified Vector3 position in this dimension
@@ -723,7 +550,7 @@ abstract class Dimension implements ChunkManager{
 			if($update === true){
 				$this->updateAllLight($block);
 
-				$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($block));
+				$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($block));
 				if(!$ev->isCancelled()){
 					$evBlock = $ev->getBlock();
 					foreach($this->getNearbyEntities(new AxisAlignedBB($evBlock->x - 1, $evBlock->y - 1, $evBlock->z - 1, $evBlock->x + 1, $evBlock->y + 1, $evBlock->z + 1)) as $entity){
@@ -738,6 +565,46 @@ abstract class Dimension implements ChunkManager{
 		}
 
 		return false;
+	}
+
+	/**
+	 * Updates blocks around a Vector3 position.
+	 * @since API 3.0.0
+	 *
+	 * @param Vector3 $pos
+	 */
+	public function updateBlocksAround(Vector3 $pos){
+		$pos = $pos->floor();
+
+		$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y - 1, $pos->z)));
+		if(!$ev->isCancelled()){
+			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
+		}
+
+		$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y + 1, $pos->z)));
+		if(!$ev->isCancelled()){
+			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
+		}
+
+		$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x - 1, $pos->y, $pos->z)));
+		if(!$ev->isCancelled()){
+			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
+		}
+
+		$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x + 1, $pos->y, $pos->z)));
+		if(!$ev->isCancelled()){
+			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
+		}
+
+		$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y, $pos->z - 1)));
+		if(!$ev->isCancelled()){
+			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
+		}
+
+		$this->server->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y, $pos->z + 1)));
+		if(!$ev->isCancelled()){
+			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
+		}
 	}
 
 	/**
@@ -1001,135 +868,276 @@ abstract class Dimension implements ChunkManager{
 		return $this->getChunk($x >> 4, $z >> 4, true)->getHighestBlockAt($x & 0x0f, $z & 0x0f);
 	}
 
+
 	/**
-	 * Updates blocks around a Vector3 position.
+	 * Adds a tile to the dimension index.
+	 * @since API 3.0.0
+	 *
+	 * @param Tile $tile
+	 *
+	 * @throws LevelException
+	 */
+	public function addTile(Tile $tile){
+		/*if($tile->getLevel() !== $this){
+			throw new LevelException("Invalid Tile level");
+		}*/
+		$this->tiles[$tile->getId()] = $tile;
+		$this->clearChunkCache($tile->getX() >> 4, $tile->getZ() >> 4);
+	}
+
+	/**
+	 * Removes a tile from the dimension index.
+	 * @since API 3.0.0
+	 *
+	 * @param Tile $tile
+	 *
+	 * @throws LevelException
+	 */
+	public function removeTile(Tile $tile){
+		/*if($tile->getLevel() !== $this){
+			throw new LevelException("Invalid Tile level");
+		}*/
+
+		unset($this->tiles[$tile->getId()]);
+		unset($this->updateTiles[$tile->getId()]);
+		$this->clearChunkCache($tile->getX() >> 4, $tile->getZ() >> 4);
+	}
+
+	/**
+	 * Returns a list of the Tiles in this dimension
+	 * @since API 3.0.0
+	 *
+	 * @return Tile[]
+	 */
+	public function getTiles() : array{
+		return $this->tiles;
+	}
+
+	/**
+	 * Returns the tile with the specified ID in this dimension
+	 * @since API 3.0.0
+	 *
+	 * @param $tileId
+	 *
+	 * @return Tile|null
+	 */
+	public function getTileById(int $tileId){
+		return $this->tiles[$tileId] ?? null;
+	}
+
+	/**
+	 * Returns the Tile at the specified position, or null if not found
 	 * @since API 3.0.0
 	 *
 	 * @param Vector3 $pos
-	 */
-	public function updateBlocksAround(Vector3 $pos){
-		$pos = $pos->floor();
-
-		$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y - 1, $pos->z)));
-		if(!$ev->isCancelled()){
-			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
-		}
-
-		$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y + 1, $pos->z)));
-		if(!$ev->isCancelled()){
-			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
-		}
-
-		$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x - 1, $pos->y, $pos->z)));
-		if(!$ev->isCancelled()){
-			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
-		}
-
-		$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x + 1, $pos->y, $pos->z)));
-		if(!$ev->isCancelled()){
-			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
-		}
-
-		$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y, $pos->z - 1)));
-		if(!$ev->isCancelled()){
-			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
-		}
-
-		$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->getBlockAt($pos->x, $pos->y, $pos->z + 1)));
-		if(!$ev->isCancelled()){
-			$ev->getBlock()->onUpdate(self::BLOCK_UPDATE_NORMAL);
-		}
-	}
-
-	/**
-	 * Executes ticks on this dimension
-	 * @internal
 	 *
-	 * @param int $currentTick
+	 * @return Tile|null
 	 */
-	public function doTick(int $currentTick){
-		$this->doWeatherTick($currentTick);
-		//TODO: More stuff
+	public function getTile(Vector3 $pos){
+		$chunk = $this->getChunk($pos->x >> 4, $pos->z >> 4, false);
+
+		if($chunk !== null){
+			return $chunk->getTile($pos->x & 0x0f, $pos->y, $pos->z & 0x0f);
+		}
+
+		return null;
 	}
 
 	/**
-	 * Performs weather ticks
-	 * @internal
+	 * Returns a list of the Tile entities in the specified chunk. Returns an empty array if the chunk is not loaded.
+	 * @since API 3.0.0
 	 *
-	 * @param int $currentTick
+	 * @param int $X
+	 * @param int $Z
+	 *
+	 * @return Tile[]
 	 */
-	protected function doWeatherTick(int $currentTick){
-		//TODO
+	public function getChunkTiles(int $X, int $Z) : array{
+		return ($chunk = $this->getChunk($X, $Z)) !== null ? $chunk->getTiles() : [];
+	}
+
+
+	/**
+	 * Adds an entity to the dimension index.
+	 * @since API 3.0.0
+	 *
+	 * @param Entity $entity
+	 */
+	public function addEntity(Entity $entity){
+		if($entity instanceof Player){
+			$this->players[$entity->getId()] = $entity;
+		}
+		$this->entities[$entity->getId()] = $entity;
 	}
 
 	/**
-	 * Returns the current rain strength in this dimension
+	 * Removes an entity from the dimension's entity index. We do NOT close the entity here as it may simply be getting transferred
+	 * to another dimension.
+	 *
+	 * @since API 3.0.0
+	 *
+	 * @param Entity $entity
+	 */
+	public function removeEntity(Entity $entity){
+		if($entity instanceof Player){
+			unset($this->players[$entity->getId()]);
+			$this->checkSleep();
+		}
+
+		unset($this->entities[$entity->getId()]);
+		unset($this->updateEntities[$entity->getId()]);
+	}
+
+	/**
+	 * Returns all entities in the dimension.
+	 * @since API 3.0.0
+	 *
+	 * @return Entity[]
+	 */
+	public function getEntities() : array{
+		return $this->entities;
+	}
+
+	/**
+	 * Returns the entity with the specified ID in this dimension, or null if it does not exist.
+	 * @since API 3.0.0
+	 *
+	 * @param int $entityId
+	 *
+	 * @return Entity|null
+	 */
+	public function getEntity(int $entityId){
+		return $this->entities[$entityId] ?? null;
+	}
+
+	/**
+	 * Returns a list of the entities in the specified chunk. Returns an empty array if the chunk is not loaded.
+	 * @since API 3.0.0
+	 *
+	 * @param int $X
+	 * @param int $Z
+	 *
+	 * @return Entity[]
+	 */
+	public function getChunkEntities(int $X, int $Z) : array{
+		return ($chunk = $this->getChunk($X, $Z)) !== null ? $chunk->getEntities() : [];
+	}
+
+
+
+	/**
+	 * Returns the dimension's parent Level.
+	 * @since API 3.0.0
+	 *
+	 * @return Level|null
+	 */
+	final public function getLevel(){
+		return $this->level;
+	}
+
+	/**
+	 * Returns a DimensionType object containing immutable dimension properties
+	 * @since API 3.0.0
+	 *
+	 * @return DimensionType
+	 */
+	final public function getDimensionType() : DimensionType{
+		return $this->dimensionType;
+	}
+
+	/**
+	 * Returns the dimension's ID. Unique within levels only. This is used for world saves.
+	 *
+	 * NOTE: For vanilla dimensions, this will NOT match the folder name in Anvil/MCRegion formats due to inconsistencies in dimension
+	 * IDs between PC and PE. For example the Nether has saveID 1, but will be saved in the DIM-1 folder in the world save.
+	 *
 	 * @since API 3.0.0
 	 *
 	 * @return int
 	 */
-	public function getRainLevel() : int{
-		return $this->rainLevel;
+	final public function getSaveId() : int{
+		return $this->saveId;
 	}
 
 	/**
-	 * Sets the rain level and sends changes to players.
+	 * Returns the dimension's network ID based on the dimension type. This value affects sky colours seen by clients (red, blue, purple)
 	 * @since API 3.0.0
 	 *
-	 * @param int  $level
-	 * @param bool $send
+	 * @return int
 	 */
-	public function setRainLevel(int $level, bool $send = true){
-		$this->rainLevel = $level;
-		$this->sendWeather();
+	final public function getNetworkId() : int{
+		return $this->dimensionType->getNetworkId();
 	}
 
 	/**
-	 * Sends weather changes to the specified targets, or to all players in the dimension if not specified.
+	 * Returns the display name of this dimension.
 	 * @since API 3.0.0
 	 *
-	 * @param Player ...$targets
+	 * @return string
 	 */
-	public function sendWeather(Player ...$targets){
-		$rain = new LevelEventPacket();
-		if($this->rainLevel > 0){
-			$rain->evid = LevelEventPacket::EVENT_START_RAIN;
-			$rain->data = $this->rainLevel;
-		}else{
-			$rain->evid = LevelEventPacket::EVENT_STOP_RAIN;
-		}
+	abstract public function getDimensionName() : string;
 
-		$thunder = new LevelEventPacket();
-		if($this->thunderLevel > 0){
-			$thunder->evid = LevelEventPacket::EVENT_START_THUNDER;
-			$thunder->data = $this->thunderLevel;
-		}else{
-			$thunder->evid = LevelEventPacket::EVENT_STOP_THUNDER;
-		}
-
-		$server = $this->level->getServer();
-		if(count($targets) === 0){
-			$server->broadcastPacket($this->players, $rain);
-			$server->broadcastPacket($this->players, $thunder);
-		}else{
-			$server->broadcastPacket($targets, $rain);
-			$server->broadcastPacket($targets, $thunder);
-		}
+	/**
+	 * Returns the horizontal (X/Z) of 1 block in this dimension compared to the Overworld.
+	 * This is used to calculate positions for entities transported between dimensions.
+	 *
+	 * @since API 3.0.0
+	 *
+	 * @return float
+	 */
+	public function getDistanceMultiplier() : float{
+		return 1.0;
 	}
 
 	/**
-	 * Queues a DataPacket to be sent to all players using the specified chunk on the next tick.
+	 * Returns the dimension max build height as per MCPE
+	 * @since API 3.0.0
+	 *
+	 * @return int
+	 */
+	final public function getMaxBuildHeight() : int{
+		//TODO: add world/dimension height options (?)
+		return $this->dimensionType->getMaxBuildHeight();
+	}
+
+	/**
+	 * Returns the dimension default spawn location, including yaw and pitch.
+	 *
+	 * @param Entity|null $entity the entity to provide a spawn location for
+	 *
+	 * @return Location
+	 */
+	abstract public function getSpawnLocationFor(Entity $entity = null) : Location;
+
+	/**
+	 * Returns the fully qualified class name of the generator used for this dimension.
+	 * @since API 3.0.0
+	 *
+	 * @return string
+	 */
+	public function getGenerator() : string{
+		return $this->generatorClass;
+	}
+
+	/**
+	 * Registers the generator to all AsyncWorkers for async chunk generation.
 	 * @internal
-	 *
-	 * @param int        $chunkX
-	 * @param int        $chunkZ
-	 * @param DataPacket $packet
 	 */
-	public function addChunkPacket(int $chunkX, int $chunkZ, $packet){
-		if(!isset($this->chunkPackets[$index = Level::chunkHash($chunkX, $chunkZ)])){
-			$this->chunkPackets[$index] = [$packet];
-		}else{
-			$this->chunkPackets[$index][] = $packet;
+	public function registerGenerator(){
+		$size = $this->server->getScheduler()->getAsyncTaskPoolSize();
+		for($i = 0; $i < $size; ++$i){
+			$this->server->getScheduler()->scheduleAsyncTaskToWorker(new GeneratorRegisterTask($this, $this->generatorInstance), $i);
+		}
+	}
+
+	/**
+	 * Unregisters the generator from all AsyncWorkers
+	 * @internal
+	 */
+	public function unregisterGenerator(){
+		$size = $this->server->getScheduler()->getAsyncTaskPoolSize();
+		for($i = 0; $i < $size; ++$i){
+			$this->server->getScheduler()->scheduleAsyncTaskToWorker(new GeneratorUnregisterTask($this), $i);
 		}
 	}
 }
