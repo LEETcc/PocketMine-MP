@@ -38,7 +38,7 @@ class Nether extends Dimension{
 		return "Nether";
 	}
 
-	public function getDistanceMultiplier() : float{
+	public function getRelativeScale() : float{
 		return 8.0;
 	}
 }

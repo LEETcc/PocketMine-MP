@@ -1078,18 +1078,6 @@ abstract class Dimension implements ChunkManager{
 	abstract public function getDimensionName() : string;
 
 	/**
-	 * Returns the horizontal (X/Z) of 1 block in this dimension compared to the Overworld.
-	 * This is used to calculate positions for entities transported between dimensions.
-	 *
-	 * @since API 3.0.0
-	 *
-	 * @return float
-	 */
-	public function getDistanceMultiplier() : float{
-		return 1.0;
-	}
-
-	/**
 	 * Returns the dimension max build height as per MCPE
 	 * @since API 3.0.0
 	 *
@@ -1101,13 +1089,52 @@ abstract class Dimension implements ChunkManager{
 	}
 
 	/**
-	 * Returns the dimension default spawn location, including yaw and pitch.
+	 * Returns the horizontal distance travelled in the Overworld for one block in this dimension.
+	 * @since API 3.0.0
 	 *
-	 * @param Entity|null $entity the entity to provide a spawn location for
-	 *
-	 * @return Location
+	 * @return float
 	 */
-	abstract public function getSpawnLocationFor(Entity $entity = null) : Location;
+	public function getRelativeScale() : float{
+		return 1.0;
+	}
+
+	/**
+	 * Returns whether distance in this dimension scales relative to other dimensions.
+	 * @since API 3.0.0
+	 *
+	 * @return bool
+	 */
+	public function hasRelativeScale() : bool{
+		return true;
+	}
+
+	/**
+	 * Returns a Position translated to its relative position in this dimension. Used for calculating spawn points.
+	 * @since API 3.0.0
+	 *
+	 * @param Position $pos
+	 *
+	 * @return Position
+	 */
+	public function getRelativeSpawn(Position $pos) : Position{
+		if(!$pos->isValid() or !$this->hasRelativeScale() or !$pos->getDimension()->hasRelativeScale()){
+			return $this->getDefaultSpawn();
+		}else{
+			// origin / target (Overworld -> Nether = 1/8, Nether -> Overworld = 8/1)
+			$ratio = $pos->getDimension()->getRelativeScale() / $this->getRelativeScale();
+			return Position::fromObject($pos->multiply($ratio), $this);
+		}
+	}
+
+	/**
+	 * Returns the fallback spawn point for this dimension.
+	 * @since API 3.0.0
+	 *
+	 * @return Position
+	 */
+	public function getDefaultSpawn() : Position{
+		return Position::fromObject($this->level->getProvider()->getSpawn(), $this);
+	}
 
 	/**
 	 * Returns the fully qualified class name of the generator used for this dimension.

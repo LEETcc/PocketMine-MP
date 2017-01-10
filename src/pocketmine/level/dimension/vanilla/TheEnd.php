@@ -26,6 +26,7 @@ namespace pocketmine\level\dimension\vanilla;
 use pocketmine\level\dimension\Dimension;
 use pocketmine\level\dimension\DimensionType;
 use pocketmine\level\Level;
+use pocketmine\level\Position;
 use pocketmine\network\protocol\ChangeDimensionPacket;
 
 class TheEnd extends Dimension{
@@ -36,5 +37,17 @@ class TheEnd extends Dimension{
 
 	public function getDimensionName() : string{
 		return "The End";
+	}
+
+	public function hasRelativeScale() : bool{
+		return false;
+	}
+
+	public function getRelativeSpawn(Position $pos) : Position{
+		return $this->getDefaultSpawn();
+	}
+
+	public function getDefaultSpawn() : Position{
+		return new Position(100, 49, 0, $this); //TODO: location
 	}
 }
