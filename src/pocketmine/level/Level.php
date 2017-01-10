@@ -216,11 +216,6 @@ class Level implements Metadatable{
 	/** @var BlockMetadataStore */
 	private $blockMetadata;
 
-	/** @var Position */
-	private $temporalPosition;
-	/** @var Vector3 */
-	private $temporalVector;
-
 	/** @var \SplFixedArray */
 	private $blockStates;
 
@@ -360,8 +355,7 @@ class Level implements Metadatable{
 		$this->cacheChunks = (bool) $this->server->getProperty("chunk-sending.cache-chunks", false);
 
 		$this->timings = new LevelTimings($this);
-		$this->temporalPosition = new Position(0, 0, 0, $this);
-		$this->temporalVector = new Vector3(0, 0, 0);
+
 		$this->tickRate = 1;
 	}
 
