@@ -23,30 +23,27 @@ declare(strict_types = 1);
 
 namespace pocketmine\level\dimension;
 
+use pocketmine\block\Block;
 use pocketmine\entity\Entity;
 use pocketmine\event\block\BlockUpdateEvent;
-use pocketmine\level\dimension\vanilla\{
-	Overworld,
-	Nether,
-	TheEnd
-};
+use pocketmine\level\ChunkLoader;
 use pocketmine\level\ChunkManager;
+use pocketmine\level\dimension\vanilla\{
+	Nether, Overworld, TheEnd
+};
 use pocketmine\level\format\Chunk;
-use pocketmine\level\format\generic\GenericChunk;
 use pocketmine\level\generator\{
-	Generator,
-	GeneratorRegisterTask,
-	GeneratorUnregisterTask
+	Generator, GeneratorRegisterTask, GeneratorUnregisterTask
 };
 use pocketmine\level\Level;
-use pocketmine\math\Vector3;
+use pocketmine\level\utils\LevelException;
+use pocketmine\math\{
+	AxisAlignedBB, Vector3
+};
 use pocketmine\network\protocol\{
-	ChangeDimensionPacket,
-	DataPacket,
-	LevelEventPacket
+	ChangeDimensionPacket, DataPacket, LevelEventPacket, UpdateBlockPacket
 };
 use pocketmine\Player;
-use pocketmine\Server;
 use pocketmine\tile\Tile;
 use pocketmine\utils\Random;
 
@@ -60,6 +57,12 @@ abstract class Dimension implements ChunkManager{
 	const ID_OVERWORLD = 0;
 	const ID_NETHER = 1;
 	const ID_THE_END = 2;
+
+	const BLOCK_UPDATE_NORMAL = 1;
+	const BLOCK_UPDATE_RANDOM = 2;
+	const BLOCK_UPDATE_SCHEDULED = 3;
+	const BLOCK_UPDATE_WEAK = 4;
+	const BLOCK_UPDATE_TOUCH = 5;
 
 	private static $registeredDimensions = [];
 	private static $saveIdCounter = 1000;
@@ -136,6 +139,8 @@ abstract class Dimension implements ChunkManager{
 	protected $saveId;
 	/** @var string */
 	protected $generatorClass;
+	/** @var Generator */
+	protected $generatorInstance;
 
 	/** @var Chunk[] */
 	protected $chunks = [];
@@ -148,9 +153,20 @@ abstract class Dimension implements ChunkManager{
 
 	/** @var Block[] */
 	protected $blockCache = [];
+	/** @var Block[][] */
+	protected $changedBlocks = [];
 
 	/** @var Player[] */
 	protected $players = [];
+
+	/** @var ChunkLoader[] */
+	private $loaders = [];
+	/** @var int[] */
+	private $loaderCounter = [];
+	/** @var ChunkLoader[][] */
+	private $chunkLoaders = [];
+	/** @var Player[][] */
+	private $playerLoaders = [];
 
 	/** @var Entity[] */
 	protected $entities = [];
@@ -168,6 +184,9 @@ abstract class Dimension implements ChunkManager{
 	protected $rainLevel = 0;
 	protected $thunderLevel = 0;
 	protected $nextWeatherChange;
+
+	/** @var bool */
+	protected $closed = false;
 
 	/**
 	 * @internal
@@ -193,6 +212,24 @@ abstract class Dimension implements ChunkManager{
 		$this->generatorInstance = new $generator($this->level->getProvider()->getGeneratorOptions());
 		$this->generatorInstance->init($this, new Random($this->level->getSeed()));
 		$this->registerGenerator();
+	}
+
+	/**
+	 * Returns whether this dimension object is usable, will check if the dimension has been unloaded and/or if its parent level is valid.
+	 * @since API 3.0.0
+	 *
+	 * @return bool
+	 */
+	public function isGarbage() : bool{
+		return $this->closed or $this->level->isClosed();
+	}
+
+	/**
+	 * Closes the dimension, saves ad unloads everything.
+	 * TODO
+	 */
+	public function close(){
+		$this->closed = true;
 	}
 
 	/**
@@ -582,7 +619,7 @@ abstract class Dimension implements ChunkManager{
 		$index = Level::blockHash($x, $y, $z);
 		if($useCache and isset($this->blockCache[$index])){
 			return $this->blockCache[$index];
-		}elseif(isset($this->chunks[$chunkIndex = Level::chunkHash($pos->x >> 4, $pos->z >> 4)])){
+		}elseif(isset($this->chunks[$chunkIndex = Level::chunkHash($x >> 4, $z >> 4)])){
 			$fullState = $this->chunks[$chunkIndex]->getFullBlock($x & 0x0f, $y, $z & 0x0f);
 		}
 
@@ -662,8 +699,7 @@ abstract class Dimension implements ChunkManager{
 			$block->x = $x;
 			$block->y = $y;
 			$block->z = $z;
-			$block->level = $this->level;
-			$block->dimensionId = $this->saveId;
+			$block->dimension = $this; //TODO: find a better way to do this that doesn't require public access to Position->dimension
 
 			unset($this->blockCache[$blockHash = Level::blockHash($x, $y, $z)]);
 

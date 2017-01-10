@@ -21,8 +21,8 @@
 
 namespace pocketmine\level\generator;
 
+use pocketmine\level\dimension\Dimension;
 use pocketmine\level\format\Chunk;
-use pocketmine\level\Level;
 use pocketmine\scheduler\AsyncTask;
 use pocketmine\Server;
 
@@ -33,7 +33,7 @@ class LightPopulationTask extends AsyncTask{
 	public $chunk;
 
 	public function __construct(Dimension $dimension, Chunk $chunk){
-		$this->levelId = $dimension->level->getId();
+		$this->levelId = $dimension->getLevel()->getId();
 		$this->dimensionId = $dimension->getSaveId();
 		$this->chunk = $chunk->fastSerialize();
 	}
@@ -67,4 +67,5 @@ class LightPopulationTask extends AsyncTask{
 			}
 		}
 	}
+
 }

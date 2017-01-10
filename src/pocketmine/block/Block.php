@@ -306,7 +306,7 @@ class Block extends Position implements BlockIds, Metadatable{
 			$block->x = $pos->x;
 			$block->y = $pos->y;
 			$block->z = $pos->z;
-			$block->level = $pos->level;
+			$block->dimension = $pos->dimension;
 		}
 
 		return $block;
@@ -336,7 +336,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return bool
 	 */
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
-		return $this->getLevel()->setBlock($this, $this, true, true);
+		return $this->dimension->setBlock($this, $this, true, true);
 	}
 
 	/**
@@ -358,7 +358,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return mixed
 	 */
 	public function onBreak(Item $item){
-		return $this->getLevel()->setBlock($this, new Air(), true, true);
+		return $this->dimension->setBlock($this, new Air(), true, true);
 	}
 
 	/**
@@ -515,7 +515,7 @@ class Block extends Position implements BlockIds, Metadatable{
 		$this->x = (int) $v->x;
 		$this->y = (int) $v->y;
 		$this->z = (int) $v->z;
-		$this->level = $v->level;
+		$this->dimension = $v->dimension;
 		$this->boundingBox = null;
 	}
 
@@ -596,7 +596,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 */
 	public function getSide($side, $step = 1){
 		if($this->isValid()){
-			return $this->getLevel()->getBlock(Vector3::getSide($side, $step));
+			return $this->dimension->getBlock(Vector3::getSide($side, $step));
 		}
 
 		return Block::get(Item::AIR, 0, Position::fromObject(Vector3::getSide($side, $step)));

@@ -46,7 +46,7 @@ class ItemFrame extends Flowable{
 	}
 
 	public function onActivate(Item $item, Player $player = null){
-		if(!(($tile = $this->level->getTile($this)) instanceof TileItemFrame)){
+		if(!(($tile = $this->dimension->getTile($this)) instanceof TileItemFrame)){
 			$nbt = new CompoundTag("", [
 				new StringTag("id", Tile::ITEM_FRAME),
 				new IntTag("x", $this->x),
@@ -55,7 +55,7 @@ class ItemFrame extends Flowable{
 				new FloatTag("ItemDropChance", 1.0),
 				new ByteTag("ItemRotation", 0)
 			]);
-			$tile = Tile::createTile(Tile::ITEM_FRAME, $this->level->getChunk($this->x >> 4, $this->z >> 4), $nbt);
+			$tile = Tile::createTile(Tile::ITEM_FRAME, $this->dimension->getChunk($this->x >> 4, $this->z >> 4), $nbt);
 		}
 
 		if($tile->hasItem()){
@@ -76,10 +76,10 @@ class ItemFrame extends Flowable{
 	}
 
 	public function onBreak(Item $item){
-		if(($tile = $this->level->getTile($this)) instanceof TileItemFrame){
+		if(($tile = $this->dimension->getTile($this)) instanceof TileItemFrame){
 			//TODO: add events
 			if(lcg_value() <= $tile->getItemDropChance() and $tile->getItem()->getId() !== Item::AIR){
-				$this->level->dropItem($tile->getBlock(), $tile->getItem());
+				$this->dimension->dropItem($tile->getBlock(), $tile->getItem());
 			}
 		}
 		return parent::onBreak($item);
@@ -94,7 +94,7 @@ class ItemFrame extends Flowable{
 				3 => 3
 			];
 			if(!$this->getSide($sides[$this->meta])->isSolid()){
-				$this->level->useBreakOn($this);
+				$this->dimension->useBreakOn($this);
 				return Level::BLOCK_UPDATE_NORMAL;
 			}
 		}
@@ -114,7 +114,7 @@ class ItemFrame extends Flowable{
 		];
 
 		$this->meta = $faces[$face];
-		$this->level->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 
 		$nbt = new CompoundTag("", [
 			new StringTag("id", Tile::ITEM_FRAME),
@@ -131,7 +131,7 @@ class ItemFrame extends Flowable{
 			}
 		}
 
-		Tile::createTile(Tile::ITEM_FRAME, $this->level->getChunk($this->x >> 4, $this->z >> 4), $nbt);
+		Tile::createTile(Tile::ITEM_FRAME, $this->dimension->getChunk($this->x >> 4, $this->z >> 4), $nbt);
 
 		return true;
 

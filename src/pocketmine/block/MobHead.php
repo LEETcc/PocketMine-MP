@@ -68,7 +68,7 @@ class MobHead extends Flowable{
 			}else{
 				$rot = $face;
 			}
-			$this->getLevel()->setBlock($block, $this, true);
+			$this->dimension->setBlock($block, $this, true);
 			$nbt = new CompoundTag("", [
 				new StringTag("id", Tile::SKULL),
 				new ByteTag("SkullType", $item->getDamage()),
@@ -107,7 +107,7 @@ class MobHead extends Flowable{
 	}
 
 	public function getDrops(Item $item){
-		if(($tile = $this->level->getTile($this)) instanceof SkullTile){
+		if(($tile = $this->dimension->getTile($this)) instanceof SkullTile){
 			return [
 				[Item::MOB_HEAD, $tile->getType(), 1]
 			];

@@ -113,7 +113,7 @@ class Ladder extends Transparent{
 			];
 			if(isset($faces[$face])){
 				$this->meta = $faces[$face];
-				$this->getLevel()->setBlock($block, $this, true, true);
+				$this->dimension->setBlock($block, $this, true, true);
 
 				return true;
 			}
@@ -131,7 +131,7 @@ class Ladder extends Transparent{
 				5 => 4
 			];
 			if(!$this->getSide($sides[$this->meta])->isSolid()){ //Replace with common break method
-				$this->level->useBreakOn($this);
+				$this->dimension->useBreakOn($this);
 				return Level::BLOCK_UPDATE_NORMAL;
 			}
 		}

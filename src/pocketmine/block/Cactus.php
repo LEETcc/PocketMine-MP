@@ -86,19 +86,19 @@ class Cactus extends Transparent{
 			if($this->getSide(0)->getId() !== self::CACTUS){
 				if($this->meta == 0x0F){
 					for($y = 1; $y < 3; ++$y){
-						$b = $this->getLevel()->getBlock(new Vector3($this->x, $this->y + $y, $this->z));
+						$b = $this->dimension->getBlockAt($this->x, $this->y + $y, $this->z);
 						if($b->getId() === self::AIR){
 							Server::getInstance()->getPluginManager()->callEvent($ev = new BlockGrowEvent($b, new Cactus()));
 							if(!$ev->isCancelled()){
-								$this->getLevel()->setBlock($b, $ev->getNewState(), true);
+								$this->dimension->setBlock($b, $ev->getNewState(), true);
 							}
 						}
 					}
 					$this->meta = 0;
-					$this->getLevel()->setBlock($this, $this);
+					$this->dimension->setBlock($this, $this);
 				}else{
 					++$this->meta;
-					$this->getLevel()->setBlock($this, $this);
+					$this->dimension->setBlock($this, $this);
 				}
 			}
 		}
@@ -114,7 +114,7 @@ class Cactus extends Transparent{
 			$block2 = $this->getSide(4);
 			$block3 = $this->getSide(5);
 			if($block0->isTransparent() === true and $block1->isTransparent() === true and $block2->isTransparent() === true and $block3->isTransparent() === true){
-				$this->getLevel()->setBlock($this, $this, true);
+				$this->dimension->setBlock($this, $this, true);
 
 				return true;
 			}

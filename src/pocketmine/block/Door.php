@@ -206,9 +206,9 @@ abstract class Door extends Transparent{
 	public function onUpdate($type){
 		if($type === Level::BLOCK_UPDATE_NORMAL){
 			if($this->getSide(0)->getId() === self::AIR){ //Replace with common break method
-				$this->getLevel()->setBlock($this, new Air(), false);
+				$this->dimension->setBlock($this, new Air(), false);
 				if($this->getSide(1) instanceof Door){
-					$this->getLevel()->setBlock($this->getSide(1), new Air(), false);
+					$this->dimension->setBlock($this->getSide(1), new Air(), false);
 				}
 
 				return Level::BLOCK_UPDATE_NORMAL;
@@ -240,8 +240,8 @@ abstract class Door extends Transparent{
 			}
 
 			$this->setDamage($player->getDirection() & 0x03);
-			$this->getLevel()->setBlock($block, $this, true, true); //Bottom
-			$this->getLevel()->setBlock($blockUp, $b = Block::get($this->getId(), $metaUp), true); //Top
+			$this->dimension->setBlock($block, $this, true, true); //Bottom
+			$this->dimension->setBlock($blockUp, $b = Block::get($this->getId(), $metaUp), true); //Top
 			return true;
 		}
 
@@ -252,15 +252,15 @@ abstract class Door extends Transparent{
 		if(($this->getDamage() & 0x08) === 0x08){
 			$down = $this->getSide(0);
 			if($down->getId() === $this->getId()){
-				$this->getLevel()->setBlock($down, new Air(), true);
+				$this->dimension->setBlock($down, new Air(), true);
 			}
 		}else{
 			$up = $this->getSide(1);
 			if($up->getId() === $this->getId()){
-				$this->getLevel()->setBlock($up, new Air(), true);
+				$this->dimension->setBlock($up, new Air(), true);
 			}
 		}
-		$this->getLevel()->setBlock($this, new Air(), true);
+		$this->dimension->setBlock($this, new Air(), true);
 
 		return true;
 	}
@@ -270,25 +270,25 @@ abstract class Door extends Transparent{
 			$down = $this->getSide(0);
 			if($down->getId() === $this->getId()){
 				$meta = $down->getDamage() ^ 0x04;
-				$this->getLevel()->setBlock($down, Block::get($this->getId(), $meta), true);
+				$this->dimension->setBlock($down, Block::get($this->getId(), $meta), true);
 				$players = $this->getLevel()->getChunkPlayers($this->x >> 4, $this->z >> 4);
 				if($player instanceof Player){
 					unset($players[$player->getLoaderId()]);
 				}
 
-				$this->level->addSound(new DoorSound($this));
+				$this->dimension->addSound(new DoorSound($this));
 				return true;
 			}
 
 			return false;
 		}else{
 			$this->meta ^= 0x04;
-			$this->getLevel()->setBlock($this, $this, true);
-			$players = $this->getLevel()->getChunkPlayers($this->x >> 4, $this->z >> 4);
+			$this->dimension->setBlock($this, $this, true);
+			$players = $this->dimension->getChunkPlayers($this->x >> 4, $this->z >> 4);
 			if($player instanceof Player){
 				unset($players[$player->getLoaderId()]);
 			}
-			$this->level->addSound(new DoorSound($this));
+			$this->dimension->addSound(new DoorSound($this));
 		}
 
 		return true;

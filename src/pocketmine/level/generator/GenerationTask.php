@@ -32,7 +32,6 @@ class GenerationTask extends AsyncTask{
 	public $state;
 	public $levelId;
 	public $dimensionId;
-	public $saveId;
 	public $chunk;
 
 	public function __construct(Dimension $dimension, Chunk $chunk){
@@ -90,4 +89,5 @@ class GenerationTask extends AsyncTask{
 			}
 		}
 	}
+
 }

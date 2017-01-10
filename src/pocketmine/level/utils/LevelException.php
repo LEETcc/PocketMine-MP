@@ -19,7 +19,9 @@
  *
 */
 
-namespace pocketmine\utils;
+namespace pocketmine\level\utils;
+
+use pocketmine\utils\ServerException;
 
 class LevelException extends ServerException{
 

@@ -43,12 +43,12 @@ class RedstoneOre extends Solid{
 	}
 
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
-		return $this->getLevel()->setBlock($this, $this, true, false);
+		return $this->dimension->setBlock($this, $this, true, false);
 	}
 
 	public function onUpdate($type){
 		if($type === Level::BLOCK_UPDATE_NORMAL or $type === Level::BLOCK_UPDATE_TOUCH){
-			$this->getLevel()->setBlock($this, Block::get(Item::GLOWING_REDSTONE_ORE, $this->meta));
+			$this->dimension->setBlock($this, Block::get(Item::GLOWING_REDSTONE_ORE, $this->meta));
 
 			return Level::BLOCK_UPDATE_WEAK;
 		}

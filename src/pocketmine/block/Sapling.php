@@ -63,7 +63,7 @@ class Sapling extends Flowable{
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$down = $this->getSide(0);
 		if($down->getId() === self::GRASS or $down->getId() === self::DIRT or $down->getId() === self::FARMLAND){
-			$this->getLevel()->setBlock($block, $this, true, true);
+			$this->dimension->setBlock($block, $this, true, true);
 
 			return true;
 		}
@@ -95,10 +95,10 @@ class Sapling extends Flowable{
 		}elseif($type === Level::BLOCK_UPDATE_RANDOM){ //Growth
 			if(mt_rand(1, 7) === 1){
 				if(($this->meta & 0x08) === 0x08){
-					Tree::growTree($this->getLevel(), $this->x, $this->y, $this->z, new Random(mt_rand()), $this->meta & 0x07);
+					Tree::growTree($this->dimension, $this->x, $this->y, $this->z, new Random(mt_rand()), $this->meta & 0x07);
 				}else{
 					$this->meta |= 0x08;
-					$this->getLevel()->setBlock($this, $this, true);
+					$this->dimension->setBlock($this, $this, true);
 
 					return Level::BLOCK_UPDATE_RANDOM;
 				}

@@ -44,6 +44,8 @@ class Flat extends Generator{
 	private $chunk;
 	/** @var Random */
 	private $random;
+	/** @var int */
+	private $baseSeed;
 	/** @var Populator[] */
 	private $populators = [];
 	private $structure, $chunks, $options, $floorLevel, $preset;
@@ -141,6 +143,7 @@ class Flat extends Generator{
 	public function init(ChunkManager $level, Random $random){
 		$this->level = $level;
 		$this->random = $random;
+		$this->baseSeed = $random->getSeed();
 
 		/*
 		  // Commented out : We want to delay this
@@ -167,7 +170,7 @@ class Flat extends Generator{
 	}
 
 	public function populateChunk($chunkX, $chunkZ){
-		$this->random->setSeed(0xdeadbeef ^ ($chunkX << 8) ^ $chunkZ ^ $this->level->getSeed());
+		$this->random->setSeed(0xdeadbeef ^ ($chunkX << 8) ^ $chunkZ ^ $this->baseSeed);
 		foreach($this->populators as $populator){
 			$populator->populate($this->level, $chunkX, $chunkZ, $this->random);
 		}

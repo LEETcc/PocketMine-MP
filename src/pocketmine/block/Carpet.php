@@ -79,7 +79,7 @@ class Carpet extends Flowable{
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$down = $this->getSide(0);
 		if($down->getId() !== self::AIR){
-			$this->getLevel()->setBlock($block, $this, true, true);
+			$this->dimension->setBlock($block, $this, true, true);
 
 			return true;
 		}

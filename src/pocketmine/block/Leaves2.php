@@ -112,7 +112,7 @@ class Leaves2 extends Leaves{
 		if($type === Level::BLOCK_UPDATE_NORMAL){
 			if(($this->meta & 0b00001100) === 0){
 				$this->meta |= 0x08;
-				$this->getLevel()->setBlock($this, $this, true, false);
+				$this->dimension->setBlock($this, $this, true, false);
 			}
 		}elseif($type === Level::BLOCK_UPDATE_RANDOM){
 			if(($this->meta & 0b00001100) === 0x08){
@@ -123,9 +123,9 @@ class Leaves2 extends Leaves{
 				Server::getInstance()->getPluginManager()->callEvent($ev = new LeavesDecayEvent($this));
 
 				if($ev->isCancelled() or $this->findLog($this, $visited, 0, $check) === true){
-					$this->getLevel()->setBlock($this, $this, false, false);
+					$this->dimension->setBlock($this, $this, false, false);
 				}else{
-					$this->getLevel()->useBreakOn($this);
+					$this->dimension->useBreakOn($this);
 
 					return Level::BLOCK_UPDATE_NORMAL;
 				}
@@ -137,7 +137,7 @@ class Leaves2 extends Leaves{
 
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$this->meta |= 0x04;
-		$this->getLevel()->setBlock($this, $this, true);
+		$this->dimension->setBlock($this, $this, true);
 	}
 
 	public function getDrops(Item $item){

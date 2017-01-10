@@ -29,7 +29,7 @@ use pocketmine\utils\MainLogger;
 class Position extends Vector3{
 
 	/** @var Dimension */
-	protected $dimension = null;
+	public $dimension = null; //TODO: remove public usages of this
 
 	/**
 	 * @param int|float      $x

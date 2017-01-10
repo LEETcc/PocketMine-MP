@@ -50,7 +50,7 @@ class TallGrass extends Flowable{
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$down = $this->getSide(0);
 		if($down->getId() === self::GRASS){
-			$this->getLevel()->setBlock($block, $this, true);
+			$this->dimension->setBlock($block, $this, true);
 
 			return true;
 		}
@@ -62,7 +62,7 @@ class TallGrass extends Flowable{
 	public function onUpdate($type){
 		if($type === Level::BLOCK_UPDATE_NORMAL){
 			if($this->getSide(0)->isTransparent() === true){ //Replace with common break method
-				$this->getLevel()->setBlock($this, new Air(), true, true);
+				$this->dimension->setBlock($this, new Air(), true, true);
 
 				return Level::BLOCK_UPDATE_NORMAL;
 			}

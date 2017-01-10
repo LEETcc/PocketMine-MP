@@ -66,7 +66,7 @@ class Cake extends Transparent implements FoodSource{
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$down = $this->getSide(0);
 		if($down->getId() !== self::AIR){
-			$this->getLevel()->setBlock($block, $this, true, true);
+			$this->dimension->setBlock($block, $this, true, true);
 
 			return true;
 		}
@@ -77,7 +77,7 @@ class Cake extends Transparent implements FoodSource{
 	public function onUpdate($type){
 		if($type === Level::BLOCK_UPDATE_NORMAL){
 			if($this->getSide(0)->getId() === self::AIR){ //Replace with common break method
-				$this->getLevel()->setBlock($this, new Air(), true);
+				$this->dimension->setBlock($this, new Air(), true);
 
 				return Level::BLOCK_UPDATE_NORMAL;
 			}
@@ -95,7 +95,7 @@ class Cake extends Transparent implements FoodSource{
 			$ev = new EntityEatBlockEvent($player, $this);
 
 			if(!$ev->isCancelled()){
-				$this->getLevel()->setBlock($this, $ev->getResidue());
+				$this->dimension->setBlock($this, $ev->getResidue());
 				return true;
 			}
 		}

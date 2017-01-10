@@ -59,7 +59,7 @@ class WaterLily extends Flowable{
 		if($target instanceof Water){
 			$up = $target->getSide(Vector3::SIDE_UP);
 			if($up->getId() === Block::AIR){
-				$this->getLevel()->setBlock($up, $this, true, true);
+				$this->dimension->setBlock($up, $this, true, true);
 				return true;
 			}
 		}

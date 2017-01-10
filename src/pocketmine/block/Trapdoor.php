@@ -138,7 +138,7 @@ class Trapdoor extends Transparent{
 		if(($fy > 0.5 and $face !== self::SIDE_UP) or $face === self::SIDE_DOWN){
 			$this->meta |= self::MASK_UPPER; //top half of block
 		}
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 		return true;
 	}
 
@@ -150,8 +150,8 @@ class Trapdoor extends Transparent{
 
 	public function onActivate(Item $item, Player $player = null){
 		$this->meta ^= self::MASK_OPENED;
-		$this->getLevel()->setBlock($this, $this, true);
-		$this->level->addSound(new DoorSound($this));
+		$this->dimension->setBlock($this, $this, true);
+		$this->dimension->addSound(new DoorSound($this));
 		return true;
 	}
 

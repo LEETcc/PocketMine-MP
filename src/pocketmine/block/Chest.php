@@ -87,7 +87,7 @@ class Chest extends Transparent{
 			}
 			$c = $this->getSide($side);
 			if($c->getId() === $this->id and $c->getDamage() === $this->meta){
-				$tile = $this->getLevel()->getTile($c);
+				$tile = $this->dimension->getTile($c);
 				if($tile instanceof TileChest and !$tile->isPaired()){
 					$chest = $tile;
 					break;
@@ -95,7 +95,7 @@ class Chest extends Transparent{
 			}
 		}
 
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 		$nbt = new CompoundTag("", [
 			new ListTag("Items", []),
 			new StringTag("id", Tile::CHEST),
@@ -126,11 +126,11 @@ class Chest extends Transparent{
 	}
 
 	public function onBreak(Item $item){
-		$t = $this->getLevel()->getTile($this);
+		$t = $this->dimension->getTile($this);
 		if($t instanceof TileChest){
 			$t->unpair();
 		}
-		$this->getLevel()->setBlock($this, new Air(), true, true);
+		$this->dimension->setBlock($this, new Air(), true, true);
 
 		return true;
 	}
@@ -142,7 +142,7 @@ class Chest extends Transparent{
 				return true;
 			}
 
-			$t = $this->getLevel()->getTile($this);
+			$t = $this->dimension->getTile($this);
 			$chest = null;
 			if($t instanceof TileChest){
 				$chest = $t;

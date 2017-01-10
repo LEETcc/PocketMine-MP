@@ -51,7 +51,7 @@ class MelonStem extends Crops{
 					++$block->meta;
 					Server::getInstance()->getPluginManager()->callEvent($ev = new BlockGrowEvent($this, $block));
 					if(!$ev->isCancelled()){
-						$this->getLevel()->setBlock($this, $ev->getNewState(), true);
+						$this->dimension->setBlock($this, $ev->getNewState(), true);
 					}
 
 					return Level::BLOCK_UPDATE_RANDOM;
@@ -67,7 +67,7 @@ class MelonStem extends Crops{
 					if($side->getId() === self::AIR and ($d->getId() === self::FARMLAND or $d->getId() === self::GRASS or $d->getId() === self::DIRT)){
 						Server::getInstance()->getPluginManager()->callEvent($ev = new BlockGrowEvent($side, new Melon()));
 						if(!$ev->isCancelled()){
-							$this->getLevel()->setBlock($side, $ev->getNewState(), true);
+							$this->dimension->setBlock($side, $ev->getNewState(), true);
 						}
 					}
 				}

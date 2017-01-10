@@ -105,7 +105,7 @@ use pocketmine\Server;
 use pocketmine\tile\Chest;
 use pocketmine\tile\Tile;
 use pocketmine\utils\Binary;
-use pocketmine\utils\LevelException;
+use pocketmine\level\utils\LevelException;
 use pocketmine\utils\Random;
 use pocketmine\utils\ReversePriorityQueue;
 
@@ -188,6 +188,8 @@ class Level implements Metadatable{
 	public $stopTime;
 
 	private $folderName;
+
+	private $defaultDimensionId = Dimension::ID_OVERWORLD;
 
 	/** @var Chunk[] */
 	private $chunks = [];

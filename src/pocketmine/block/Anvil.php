@@ -78,7 +78,7 @@ class Anvil extends Fallable{
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$direction = ($player !== null ? $player->getDirection() : 0) & 0x03;
 		$this->meta = ($this->meta & 0x0c) | $direction;
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 	}
 
 	public function getDrops(Item $item){

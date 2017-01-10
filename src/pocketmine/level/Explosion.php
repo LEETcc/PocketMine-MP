@@ -29,6 +29,7 @@ use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\entity\EntityExplodeEvent;
 use pocketmine\item\Item;
+use pocketmine\level\dimension\Dimension;
 use pocketmine\level\particle\HugeExplodeSeedParticle;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Math;
@@ -44,7 +45,8 @@ use pocketmine\utils\Random;
 class Explosion{
 
 	private $rays = 16; //Rays
-	public $level;
+	/** @var null|Dimension */
+	public $dimension;
 	public $source;
 	public $size;
 	/**
@@ -56,7 +58,7 @@ class Explosion{
 	private $what;
 
 	public function __construct(Position $center, $size, $what = null){
-		$this->level = $center->getLevel();
+		$this->dimension = $center->getDimension();
 		$this->source = $center;
 		$this->size = max($size, 0);
 		$this->what = $what;
@@ -94,7 +96,7 @@ class Explosion{
 							if($vBlock->y < 0 or $vBlock->y >= Level::Y_MAX){
 								break;
 							}
-							$block = $this->level->getBlock($vBlock);
+							$block = $this->dimension->getBlock($vBlock);
 
 							if($block->getId() !== 0){
 								$blastForce -= ($block->getResistance() / 5 + 0.3) * $this->stepLen;
@@ -124,7 +126,7 @@ class Explosion{
 		$yield = (1 / $this->size) * 100;
 
 		if($this->what instanceof Entity){
-			$this->level->getServer()->getPluginManager()->callEvent($ev = new EntityExplodeEvent($this->what, $this->source, $this->affectedBlocks, $yield));
+			$this->dimension->getLevel()->getServer()->getPluginManager()->callEvent($ev = new EntityExplodeEvent($this->what, $this->source, $this->affectedBlocks, $yield));
 			if($ev->isCancelled()){
 				return false;
 			}else{
@@ -143,7 +145,7 @@ class Explosion{
 
 		$explosionBB = new AxisAlignedBB($minX, $minY, $minZ, $maxX, $maxY, $maxZ);
 
-		$list = $this->level->getNearbyEntities($explosionBB, $this->what instanceof Entity ? $this->what : null);
+		$list = $this->dimension->getNearbyEntities($explosionBB, $this->what instanceof Entity ? $this->what : null);
 		foreach($list as $entity){
 			$distance = $entity->distance($this->source) / $explosionSize;
 
@@ -173,7 +175,7 @@ class Explosion{
 		foreach($this->affectedBlocks as $block){
 			if($block->getId() === Block::TNT){
 				$mot = (new Random())->nextSignedFloat() * M_PI * 2;
-				$tnt = Entity::createEntity("PrimedTNT", $this->level->getChunk($block->x >> 4, $block->z >> 4), new CompoundTag("", [
+				$tnt = Entity::createEntity("PrimedTNT", $this->dimension->getChunk($block->x >> 4, $block->z >> 4), new CompoundTag("", [
 					"Pos" => new ListTag("Pos", [
 						new DoubleTag("", $block->x + 0.5),
 						new DoubleTag("", $block->y),
@@ -193,18 +195,18 @@ class Explosion{
 				$tnt->spawnToAll();
 			}elseif(mt_rand(0, 100) < $yield){
 				foreach($block->getDrops($air) as $drop){
-					$this->level->dropItem($block->add(0.5, 0.5, 0.5), Item::get(...$drop));
+					$this->dimension->dropItem($block->add(0.5, 0.5, 0.5), Item::get(...$drop));
 				}
 			}
 
-			$this->level->setBlockIdAt($block->x, $block->y, $block->z, 0);
+			$this->dimension->setBlockIdAt($block->x, $block->y, $block->z, 0);
 
 			$pos = new Vector3($block->x, $block->y, $block->z);
 
 			for($side = 0; $side < 5; $side++){
 				$sideBlock = $pos->getSide($side);
 				if(!isset($this->affectedBlocks[$index = Level::blockHash($sideBlock->x, $sideBlock->y, $sideBlock->z)]) and !isset($updateBlocks[$index])){
-					$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->level->getBlock($sideBlock)));
+					$this->dimension->getLevel()->getServer()->getPluginManager()->callEvent($ev = new BlockUpdateEvent($this->dimension->getBlock($sideBlock)));
 					if(!$ev->isCancelled()){
 						$ev->getBlock()->onUpdate(Level::BLOCK_UPDATE_NORMAL);
 					}
@@ -220,9 +222,9 @@ class Explosion{
 		$pk->z = $this->source->z;
 		$pk->radius = $this->size;
 		$pk->records = $send;
-		$this->level->addChunkPacket($source->x >> 4, $source->z >> 4, $pk);
+		$this->dimension->addChunkPacket($source->x >> 4, $source->z >> 4, $pk);
 
-		$this->level->addParticle(new HugeExplodeSeedParticle($source));
+		$this->dimension->addParticle(new HugeExplodeSeedParticle($source));
 
 		return true;
 	}

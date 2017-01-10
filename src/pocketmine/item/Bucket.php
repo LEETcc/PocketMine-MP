@@ -50,7 +50,7 @@ class Bucket extends Item{
 				$result->setDamage($target->getId());
 				$player->getServer()->getPluginManager()->callEvent($ev = new PlayerBucketFillEvent($player, $block, $face, $this, $result));
 				if(!$ev->isCancelled()){
-					$player->getLevel()->setBlock($target, new Air(), true, true);
+					$player->dimension->setBlock($target, new Air(), true, true);
 					if($player->isSurvival()){
 						$player->getInventory()->setItemInHand($ev->getItem());
 					}
@@ -64,7 +64,7 @@ class Bucket extends Item{
 			$result->setDamage(0);
 			$player->getServer()->getPluginManager()->callEvent($ev = new PlayerBucketFillEvent($player, $block, $face, $this, $result));
 			if(!$ev->isCancelled()){
-				$player->getLevel()->setBlock($block, $targetBlock, true, true);
+				$player->dimension->setBlock($block, $targetBlock, true, true);
 				if($player->isSurvival()){
 					$player->getInventory()->setItemInHand($ev->getItem());
 				}

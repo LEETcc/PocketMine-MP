@@ -23,7 +23,7 @@ declare(strict_types = 1);
 
 namespace pocketmine\level\format\io;
 
-use pocketmine\utils\LevelException;
+use pocketmine\level\utils\LevelException;
 
 abstract class LevelProviderManager{
 	protected static $providers = [];

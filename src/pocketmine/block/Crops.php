@@ -36,7 +36,7 @@ abstract class Crops extends Flowable{
 	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
 		$down = $this->getSide(0);
 		if($down->getId() === self::FARMLAND){
-			$this->getLevel()->setBlock($block, $this, true, true);
+			$this->dimension->setBlock($block, $this, true, true);
 
 			return true;
 		}
@@ -56,7 +56,7 @@ abstract class Crops extends Flowable{
 			Server::getInstance()->getPluginManager()->callEvent($ev = new BlockGrowEvent($this, $block));
 
 			if(!$ev->isCancelled()){
-				$this->getLevel()->setBlock($this, $ev->getNewState(), true, true);
+				$this->dimension->setBlock($this, $ev->getNewState(), true, true);
 			}
 
 			$item->count--;
@@ -81,7 +81,7 @@ abstract class Crops extends Flowable{
 					Server::getInstance()->getPluginManager()->callEvent($ev = new BlockGrowEvent($this, $block));
 
 					if(!$ev->isCancelled()){
-						$this->getLevel()->setBlock($this, $ev->getNewState(), true, true);
+						$this->dimension->setBlock($this, $ev->getNewState(), true, true);
 					}else{
 						return Level::BLOCK_UPDATE_RANDOM;
 					}

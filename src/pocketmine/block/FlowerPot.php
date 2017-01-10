@@ -68,7 +68,7 @@ class FlowerPot extends Flowable{
 			return false;
 		}
 
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 
 		$nbt = new CompoundTag("", [
 			new StringTag("id", Tile::FLOWER_POT),
@@ -102,7 +102,7 @@ class FlowerPot extends Flowable{
 	}
 
 	public function onActivate(Item $item, Player $player = null){
-		$pot = $this->getLevel()->getTile($this);
+		$pot = $this->dimension->getTile($this);
 		if(!($pot instanceof TileFlowerPot)){
 			return false;
 		}
@@ -111,7 +111,7 @@ class FlowerPot extends Flowable{
 		}
 
 		$this->setDamage(self::STATE_FULL); //specific damage value is unnecessary, it just needs to be non-zero to show an item.
-		$this->getLevel()->setBlock($this, $this, true, false);
+		$this->dimension->setBlock($this, $this, true, false);
 		$pot->setItem($item);
 
 		if($player instanceof Player){
@@ -125,7 +125,7 @@ class FlowerPot extends Flowable{
 
 	public function getDrops(Item $item){
 		$items = [[Item::FLOWER_POT, 0, 1]];
-		$tile = $this->getLevel()->getTile($this);
+		$tile = $this->dimension->getTile($this);
 		if($tile instanceof TileFlowerPot){
 			if(($item = $tile->getItem())->getId() !== Item::AIR){
 				$items[] = [$item->getId(), $item->getDamage(), 1];

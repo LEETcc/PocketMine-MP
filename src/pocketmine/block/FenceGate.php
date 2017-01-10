@@ -88,7 +88,7 @@ class FenceGate extends Transparent{
 			3 => 2,
 		];
 		$this->meta = $faces[$player instanceof Player ? $player->getDirection() : 0] & 0x03;
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 
 		return true;
 	}
@@ -103,8 +103,8 @@ class FenceGate extends Transparent{
 		$this->meta ^= 0x04; //Flip open/close state
 		//TODO: Face player when opened
 
-		$this->getLevel()->setBlock($this, $this, true);
-		$this->level->addSound(new DoorSound($this));
+		$this->dimension->setBlock($this, $this, true);
+		$this->dimension->addSound(new DoorSound($this));
 		return true;
 	}
 }

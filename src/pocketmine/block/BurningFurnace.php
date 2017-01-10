@@ -68,7 +68,7 @@ class BurningFurnace extends Solid{
 			3 => 3,
 		];
 		$this->meta = $faces[$player instanceof Player ? $player->getDirection() : 0];
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 		$nbt = new CompoundTag("", [
 			new ListTag("Items", []),
 			new StringTag("id", Tile::FURNACE),
@@ -94,14 +94,14 @@ class BurningFurnace extends Solid{
 	}
 
 	public function onBreak(Item $item){
-		$this->getLevel()->setBlock($this, new Air(), true, true);
+		$this->dimension->setBlock($this, new Air(), true, true);
 
 		return true;
 	}
 
 	public function onActivate(Item $item, Player $player = null){
 		if($player instanceof Player){
-			if(!(($furnace = $this->getLevel()->getTile($this)) instanceof TileFurnace)){
+			if(!(($furnace = $this->dimension->getTile($this)) instanceof TileFurnace)){
 				$nbt = new CompoundTag("", [
 					new ListTag("Items", []),
 					new StringTag("id", Tile::FURNACE),

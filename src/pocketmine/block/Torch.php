@@ -78,12 +78,12 @@ class Torch extends Flowable{
 				5 => 1,
 			];
 			$this->meta = $faces[$face];
-			$this->getLevel()->setBlock($block, $this, true, true);
+			$this->dimension->setBlock($block, $this, true, true);
 
 			return true;
 		}elseif($below->isTransparent() === false or $below->getId() === self::FENCE or $below->getId() === self::COBBLE_WALL){
 			$this->meta = 0;
-			$this->getLevel()->setBlock($block, $this, true, true);
+			$this->dimension->setBlock($block, $this, true, true);
 
 			return true;
 		}

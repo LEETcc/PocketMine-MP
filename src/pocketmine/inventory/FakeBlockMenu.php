@@ -29,7 +29,7 @@ class FakeBlockMenu extends Position implements InventoryHolder{
 
 	public function __construct(Inventory $inventory, Position $pos){
 		$this->inventory = $inventory;
-		parent::__construct($pos->x, $pos->y, $pos->z, $pos->level);
+		parent::__construct($pos->x, $pos->y, $pos->z, $pos->getDimension());
 	}
 
 	public function getInventory(){

@@ -33,7 +33,7 @@ use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\LongTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\utils\ChunkException;
-use pocketmine\utils\LevelException;
+use pocketmine\level\utils\LevelException;
 
 abstract class BaseLevelProvider implements LevelProvider{
 	/** @var Level */

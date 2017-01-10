@@ -53,7 +53,7 @@ class LitPumpkin extends Solid{
 		if($player instanceof Player){
 			$this->meta = ((int) $player->getDirection() + 5) % 4;
 		}
-		$this->getLevel()->setBlock($block, $this, true, true);
+		$this->dimension->setBlock($block, $this, true, true);
 
 		return true;
 	}

@@ -133,7 +133,7 @@ class Vine extends Transparent{
 			];
 			if(isset($faces[$face])){
 				$this->meta = $faces[$face];
-				$this->getLevel()->setBlock($block, $this, true, true);
+				$this->dimension->setBlock($block, $this, true, true);
 
 				return true;
 			}

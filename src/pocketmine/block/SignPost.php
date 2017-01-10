@@ -81,13 +81,13 @@ class SignPost extends Transparent{
 
 			if($face === 1){
 				$this->meta = floor((($player->yaw + 180) * 16 / 360) + 0.5) & 0x0f;
-				$this->getLevel()->setBlock($block, $this, true);
+				$this->dimension->setBlock($block, $this, true);
 			}else{
 				$this->meta = $face;
-				$this->getLevel()->setBlock($block, new WallSign($this->meta), true);
+				$this->dimension->setBlock($block, new WallSign($this->meta), true);
 			}
 
-			Tile::createTile(Tile::SIGN, $this->getLevel()->getChunk($block->x >> 4, $block->z >> 4), $nbt);
+			Tile::createTile(Tile::SIGN, $this->dimension->getChunk($block->x >> 4, $block->z >> 4), $nbt);
 
 			return true;
 		}
