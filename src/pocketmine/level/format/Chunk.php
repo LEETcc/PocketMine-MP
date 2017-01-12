@@ -1073,6 +1073,7 @@ class Chunk{
 	 * @return string
 	 */
 	public static function convertBiomeColours(array $array) : string{
+		assert(count($array) === 256);
 		$result = str_repeat("\x00", 256);
 		foreach($array as $i => $colour){
 			$result{$i} = chr(($array[$i] >> 24) & 0xff);
